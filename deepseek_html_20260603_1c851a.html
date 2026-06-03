@@ -1,1080 +1,1259 @@
 <!doctype html>
 <html lang="id" class="h-full">
- <head>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Masjid Digital Display</title>
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  
+  <!-- Lucide Icons -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
   <script>
-tailwind.config = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      fontFamily: { jakarta: ['Plus Jakarta Sans', 'sans-serif'] },
-      colors: {
-        emerald: {
-          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
-          400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857',
-          800: '#065f46', 900: '#064e3b', 950: '#022c22'
+    // ===== KONFIGURASI FIREBASE - GANTI DENGAN PUNYA ANDA! =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXX",
+      authDomain: "masjid-digital-display.firebaseapp.com",
+      projectId: "masjid-digital-display",
+      storageBucket: "masjid-digital-display.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abcdef1234567890"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // Enable offline persistence (opsional)
+    db.enablePersistence()
+      .catch((err) => {
+        if (err.code == 'failed-precondition') {
+          console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+        } else if (err.code == 'unimplemented') {
+          console.log('Browser doesn\'t support persistence');
+        }
+      });
+    
+    console.log('🔥 Firebase connected successfully!');
+  </script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { jakarta: ['Plus Jakarta Sans', 'sans-serif'] },
+          colors: {
+            emerald: {
+              50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
+              400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857',
+              800: '#065f46', 900: '#064e3b', 950: '#022c22'
+            }
+          }
         }
       }
     }
-  }
-}
-</script>
+  </script>
+  
   <style>
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(5,150,105,0.3), 0 0 60px rgba(5,150,105,0.1); }
-  50% { box-shadow: 0 0 30px rgba(5,150,105,0.5), 0 0 80px rgba(5,150,105,0.2); }
-}
-.pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
-@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-.fade-up { animation: fadeUp 0.5s ease-out forwards; opacity:0; }
-.scrollbar-thin::-webkit-scrollbar { height: 6px; }
-.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-.dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #4b5563; }
-</style>
-  <style>body { box-sizing: border-box; }</style>
- <script src="/_sdk/telemetry_sdk.js"></script></head>
- <body class="h-full font-jakarta bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors duration-300">
-  <div id="app" class="w-full h-full overflow-auto"><!-- Header -->
-   <header class="w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center">
-       <svg width="22" height="22" viewbox="0 0 24 24" fill="none">
-        <path d="M12 2C12 2 8 6 8 10c0 1.5.5 2.8 1.3 3.8L6 17h12l-3.3-3.2C15.5 12.8 16 11.5 16 10c0-4-4-8-4-8z" fill="white" /><rect x="6" y="17" width="12" height="2" rx="1" fill="white" /><rect x="10" y="19" width="4" height="3" rx="0.5" fill="white" />
-       </svg>
-      </div>
-      <div>
-       <h1 id="headerMasjidName" class="text-lg font-bold text-gray-900 dark:text-white leading-tight">Masjid Al-Ikhlas</h1>
-       <p id="headerMasehiDate" class="text-xs text-gray-500 dark:text-gray-400"></p>
-      </div>
-     </div>
-     <div class="flex items-center gap-2"><span id="headerHijriDate" class="hidden sm:block text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/40 px-3 py-1.5 rounded-full"></span> <button id="adminBtn" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Admin mode" title="Admin mode"> <i data-lucide="lock" class="w-4 h-4"></i> </button> <button id="darkToggle" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle dark mode"> <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i> <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i> </button>
-     </div>
-    </div>
-   </header><!-- Main Content -->
-   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6"><!-- Hero: Clock & Countdown -->
-    <section class="relative rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 p-6 sm:p-8 text-white overflow-hidden pulse-glow fade-up" style="animation-delay:0.1s">
-     <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-     <div class="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-     <div class="relative z-10 flex flex-col items-center justify-center gap-2 text-center">
-      <p class="text-emerald-200 text-sm font-medium" id="heroDateDual"></p>
-      <p id="digitalClock" class="text-emerald-200 text-lg font-semibold tabular-nums">--:--:--</p>
-      <div class="flex flex-col items-center gap-1.5">
-       <p class="text-emerald-200 text-xs font-semibold uppercase tracking-wider">Menuju</p>
-       <p id="nextPrayerName" class="text-3xl sm:text-4xl font-bold">—</p>
-       <p id="countdownTimer" class="text-5xl sm:text-6xl font-extrabold tabular-nums tracking-tight">--:--:--</p>
-      </div>
-     </div>
-    </section><!-- Prayer Times Grid -->
-    <section class="fade-up" style="animation-delay:0.2s"><!-- Prayer Times Grid -->
-     <section class="fade-up" style="animation-delay:0.2s">
-      <div class="flex items-center justify-between mb-3">
-       <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i> Jadwal Shalat Hari Ini</h2><button id="btnEditPrayers" class="inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Edit</button>
-      </div>
-      <div id="prayerGrid" class="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-thin pb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
-     </section>
-    </section><!-- Kultum Progress & Upcoming Schedule -->
-    <section class="grid md:grid-cols-2 gap-4 fade-up" style="animation-delay:0.25s"><!-- Kultum Progress Card -->
-     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
-      <div class="flex items-center justify-between mb-4">
-       <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> Progress Kultum</h3>
-      </div>
-      <div class="space-y-4">
-       <div>
-        <div class="flex items-center justify-between mb-2">
-         <p class="text-xs font-semibold text-gray-600 dark:text-gray-400">Selesai</p>
-         <p id="kultumCompletedCount" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">0/0</p>
-        </div>
-        <div class="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
-         <div id="kultumProgressBar" class="bg-emerald-600 h-full rounded-full transition-all duration-500" style="width:0%"></div>
-        </div>
-       </div>
-       <div class="grid grid-cols-3 gap-2 text-center">
-        <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
-         <p class="text-xs text-gray-500 mb-1">Selesai</p>
-         <p id="kultumDone" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">0</p>
-        </div>
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-         <p class="text-xs text-gray-500 mb-1">Tidak Ada</p>
-         <p id="kultumMissed" class="text-lg font-bold text-gray-600 dark:text-gray-400">0</p>
-        </div>
-        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-         <p class="text-xs text-gray-500 mb-1">Terjadwal</p>
-         <p id="kultumScheduled" class="text-lg font-bold text-blue-600 dark:text-blue-400">0</p>
-        </div>
-       </div>
-      </div>
-     </div><!-- Upcoming Schedule Card -->
-     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
-      <div class="flex items-center justify-between mb-4">
-       <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4"></i> 7 Hari Mendatang</h3>
-      </div>
-      <div id="upcomingScheduleList" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-       <p class="text-xs text-gray-400 text-center py-4">Tidak ada jadwal</p>
-      </div>
-     </div>
-    </section><!-- Tabs -->
-    <section class="fade-up" style="animation-delay:0.3s">
-     <div class="flex gap-1 bg-gray-200 dark:bg-gray-800 rounded-xl p-1 mb-4 max-w-xs"><button data-tab="jadwal" class="tab-btn flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">Jadwal</button> <button data-tab="keuangan" class="tab-btn flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition-all text-gray-500 dark:text-gray-400 hover:text-gray-700">Keuangan</button>
-     </div><!-- Tab: Jadwal -->
-     <div id="tab-jadwal" class="tab-content">
-      <div class="flex flex-wrap items-center gap-2 mb-4"><button id="btnAddJadwal" class="admin-only inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"> <i data-lucide="plus" class="w-4 h-4"></i> Tambah </button> <button id="btnBulkImport" class="admin-only inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"> <i data-lucide="upload" class="w-4 h-4"></i> Bulk Import </button>
-      </div>
-      <div class="mb-4 relative">
-       <div class="relative">
-        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i> <input type="text" id="jadwalSearch" placeholder="Cari kategori, penceramah, atau tanggal..." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-colors">
-       </div>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-       <div class="overflow-x-auto scrollbar-thin">
-        <table class="w-full text-sm">
-         <thead>
-          <tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-400">
-           <th class="px-4 py-3">Kategori</th>
-           <th class="px-4 py-3">Tanggal</th>
-           <th class="px-4 py-3">Penceramah</th>
-           <th class="px-4 py-3">Status</th>
-           <th class="px-4 py-3 text-right">Aksi</th>
-          </tr>
-         </thead>
-         <tbody id="jadwalBody" class="divide-y divide-gray-50 dark:divide-gray-800/50"></tbody>
-        </table>
-       </div>
-       <div id="jadwalEmpty" class="hidden text-center py-12 text-gray-400"><i data-lucide="calendar-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-        <p class="text-sm">Belum ada jadwal. Klik "Tambah" untuk menambahkan.</p>
-       </div>
-      </div>
-     </div><!-- Tab: Keuangan -->
-     <div id="tab-keuangan" class="tab-content hidden">
-      <div class="grid sm:grid-cols-2 gap-3 mb-4">
-       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Saldo</p>
-        <p id="totalBalance" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">Rp 0</p>
-       </div>
-       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Pengeluaran Bulan Ini</p>
-        <p id="monthlyExpense" class="text-2xl font-extrabold text-red-500">Rp 0</p>
-       </div>
-      </div>
-      <div class="flex flex-wrap items-center gap-2 mb-4"><button id="btnAddTx" class="admin-only inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"> <i data-lucide="plus" class="w-4 h-4"></i> Tambah Transaksi </button> <button id="btnBulkImportTx" class="admin-only inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"> <i data-lucide="upload" class="w-4 h-4"></i> Bulk Import </button>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-       <div class="overflow-x-auto scrollbar-thin">
-        <table class="w-full text-sm">
-         <thead>
-          <tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-400">
-           <th class="px-4 py-3">Tanggal</th>
-           <th class="px-4 py-3">Keterangan</th>
-           <th class="px-4 py-3 text-right">Jumlah</th>
-           <th class="px-4 py-3 text-right">Aksi</th>
-          </tr>
-         </thead>
-         <tbody id="txBody" class="divide-y divide-gray-50 dark:divide-gray-800/50"></tbody>
-        </table>
-       </div>
-       <div id="txEmpty" class="hidden text-center py-12 text-gray-400"><i data-lucide="wallet" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-        <p class="text-sm">Belum ada transaksi.</p>
-       </div>
-      </div>
-     </div>
-    </section>
-   </main><!-- Footer -->
-   <footer class="max-w-7xl mx-auto px-4 py-6 text-center">
-    <p id="footerText" class="text-xs text-gray-400 dark:text-gray-600">Masjid Digital Information System • Powered by Canva Code</p>
-   </footer><!-- Admin Login Modal -->
-   <div id="adminLoginModal" class="fixed inset-0 z-[130] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-sm p-6 shadow-2xl">
-     <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto mb-4 flex items-center justify-center">
-      <i data-lucide="lock" class="w-6 h-6 text-emerald-600"></i>
-     </div>
-     <h3 class="text-lg font-bold text-center mb-1">Admin Mode</h3>
-     <p class="text-xs text-gray-500 text-center mb-5">Masukkan password untuk mengakses mode admin</p>
-     <form id="adminLoginForm" class="space-y-4">
-      <div>
-       <input type="password" id="adminPassword" placeholder="Password" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
-      </div>
-      <div class="flex gap-2">
-       <button type="button" id="adminCancel" class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Batal</button> <button type="submit" class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">Login</button>
-      </div>
-     </form>
-    </div>
-   </div><!-- Admin Bar -->
-   <div id="adminBar" class="hidden fixed bottom-0 left-0 right-0 z-[125] bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-     <i data-lucide="shield" class="w-4 h-4"></i> <span class="text-sm font-semibold">MODE ADMIN AKTIF</span>
-    </div><button id="adminLogout" class="text-xs font-semibold hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">Logout</button>
-   </div><!-- Modal Overlay -->
-   <div id="modalOverlay" class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
-    <div id="modalBox" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-md max-h-[90%] overflow-auto shadow-2xl">
-     <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
-      <h3 id="modalTitle" class="text-lg font-bold"></h3><button id="modalClose" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
-     </div>
-     <div id="modalBody" class="p-5"></div>
-    </div>
-   </div><!-- Inline Delete Confirm -->
-   <div id="deleteConfirm" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
-    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 max-w-sm w-full text-center shadow-2xl">
-     <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-3 flex items-center justify-center">
-      <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
-     </div>
-     <p class="font-semibold mb-1">Hapus data ini?</p>
-     <p class="text-sm text-gray-500 mb-5">Tindakan ini tidak dapat dibatalkan.</p>
-     <div class="flex gap-2 justify-center"><button id="delCancel" class="px-5 py-2 text-sm font-semibold rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Batal</button> <button id="delConfirm" class="px-5 py-2 text-sm font-semibold rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors">Hapus</button>
-     </div>
-    </div>
-   </div><!-- Toast -->
-   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[120] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium px-5 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 pointer-events-none translate-y-4"></div>
-   <script>
-// ===== STATE =====
-let allData = [];
-let deleteTarget = null;
-let editTarget = null;
-let activeTab = 'jadwal';
-let isAdminMode = false;
-
-const defaultConfig = {
-  masjid_name: 'Masjid Al-Ikhlas',
-  masjid_address: 'Jl. Kebaikan No. 1',
-  footer_text: 'Masjid Digital Information System • Powered by Canva Code',
-  background_color: '#f9fafb',
-  surface_color: '#ffffff',
-  text_color: '#1f2937',
-  accent_color: '#059669',
-  secondary_action_color: '#6b7280',
-  font_family: 'Plus Jakarta Sans',
-  font_size: 16
-};
-
-// ===== PRAYER TIMES =====
-const DEFAULT_PRAYERS = [
-  { id:'subuh', name:'Subuh', time:'04:35' },
-  { id:'dzuhur', name:'Dzuhur', time:'12:05' },
-  { id:'ashar', name:'Ashar', time:'15:20' },
-  { id:'maghrib', name:'Maghrib', time:'18:05' },
-  { id:'isya', name:'Isya', time:'19:15' }
-];
-
-let PRAYERS_EDITABLE = [...DEFAULT_PRAYERS];
-
-// ===== DATES =====
-function getMasehiStr() {
-  return new Intl.DateTimeFormat('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' }).format(new Date());
-}
-function getHijriStr() {
-  try {
-    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { weekday:'long', year:'numeric', month:'long', day:'numeric' }).format(new Date());
-  } catch { return new Intl.DateTimeFormat('ar', { calendar:'islamic-umalqura', year:'numeric', month:'long', day:'numeric' }).format(new Date()); }
-}
-
-// ===== CLOCK & COUNTDOWN =====
-function updateClock() {
-  const now = new Date();
-  const h = String(now.getHours()).padStart(2,'0');
-  const m = String(now.getMinutes()).padStart(2,'0');
-  const s = String(now.getSeconds()).padStart(2,'0');
-  document.getElementById('digitalClock').textContent = `${h}:${m}:${s}`;
-
-  const nowMin = now.getHours()*60 + now.getMinutes() + now.getSeconds()/60;
-  let next = null;
-  for (const p of PRAYERS_EDITABLE) {
-    const [ph,pm] = p.time.split(':').map(Number);
-    if (ph*60+pm > nowMin) { next = p; break; }
-  }
-  if (!next) next = PRAYERS_EDITABLE[0]; // wrap to subuh tomorrow
-
-  document.getElementById('nextPrayerName').textContent = next.name;
-
-  const [nh,nm] = next.time.split(':').map(Number);
-  let diffSec = (nh*60+nm)*60 - (now.getHours()*3600+now.getMinutes()*60+now.getSeconds());
-  if (diffSec < 0) diffSec += 86400;
-  const ch = String(Math.floor(diffSec/3600)).padStart(2,'0');
-  const cm = String(Math.floor((diffSec%3600)/60)).padStart(2,'0');
-  const cs = String(diffSec%60).padStart(2,'0');
-  document.getElementById('countdownTimer').textContent = `${ch}:${cm}:${cs}`;
-
-  // highlight prayer grid
-  document.querySelectorAll('.prayer-card').forEach(el => {
-    const isNext = el.dataset.prayer === next.id;
-    el.classList.toggle('ring-2', isNext);
-    el.classList.toggle('ring-emerald-500', isNext);
-    el.classList.toggle('bg-emerald-50', isNext);
-    el.classList.toggle('dark:bg-emerald-900/20', isNext);
-  });
-}
-
-// ===== RENDER PRAYER GRID =====
-function renderPrayerGrid() {
-  const grid = document.getElementById('prayerGrid');
-  grid.innerHTML = PRAYERS_EDITABLE.map(p => `
-    <div class="prayer-card flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 sm:p-4 text-center transition-all duration-300 min-w-[100px] sm:min-w-[120px]" data-prayer="${p.id}">
-      <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-gray-400 mb-1">${p.name}</p>
-      <p class="text-lg sm:text-xl font-extrabold tabular-nums">${p.time}</p>
-    </div>
-  `).join('');
-}
-
-// ===== DATES UPDATE =====
-function updateDates() {
-  const masehi = getMasehiStr();
-  const hijri = getHijriStr();
-  document.getElementById('headerMasehiDate').textContent = masehi;
-  document.getElementById('headerHijriDate').textContent = hijri;
-  document.getElementById('heroDateDual').textContent = `${masehi} • ${hijri}`;
-}
-
-// ===== TABS =====
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    activeTab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      b.classList.toggle('bg-white', b.dataset.tab === activeTab);
-      b.classList.toggle('dark:bg-gray-700', b.dataset.tab === activeTab);
-      b.classList.toggle('text-gray-900', b.dataset.tab === activeTab);
-      b.classList.toggle('dark:text-white', b.dataset.tab === activeTab);
-      b.classList.toggle('shadow-sm', b.dataset.tab === activeTab);
-      b.classList.toggle('text-gray-500', b.dataset.tab !== activeTab);
-      b.classList.toggle('dark:text-gray-400', b.dataset.tab !== activeTab);
-    });
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-    document.getElementById('tab-'+activeTab).classList.remove('hidden');
-  });
-});
-
-// ===== DARK MODE =====
-document.getElementById('darkToggle').addEventListener('click', () => {
-  document.documentElement.classList.toggle('dark');
-  lucide.createIcons();
-});
-
-// ===== ADMIN MODE =====
-document.getElementById('adminBtn').addEventListener('click', () => {
-  if (isAdminMode) {
-    isAdminMode = false;
-    document.getElementById('adminBar').classList.add('hidden');
-    document.getElementById('adminBtn').classList.remove('text-emerald-600');
-    showToast('Admin mode dimatikan');
-  } else {
-    const modal = document.getElementById('adminLoginModal');
-    modal.style.display = 'flex';
-    modal.classList.remove('hidden');
-    document.getElementById('adminPassword').focus();
-    lucide.createIcons();
-  }
-});
-
-document.getElementById('adminCancel').addEventListener('click', () => {
-  const modal = document.getElementById('adminLoginModal');
-  modal.style.display = 'none';
-  modal.classList.add('hidden');
-  document.getElementById('adminPassword').value = '';
-});
-
-// ===== UPDATE ADMIN BUTTON STATES =====
-function updateAdminButtonStates() {
-  const adminButtons = document.querySelectorAll('.admin-only');
-  adminButtons.forEach(btn => {
-    btn.disabled = !isAdminMode;
-    if (!isAdminMode) {
-      btn.classList.add('opacity-50', 'cursor-not-allowed');
-    } else {
-      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(5,150,105,0.3), 0 0 60px rgba(5,150,105,0.1); }
+      50% { box-shadow: 0 0 30px rgba(5,150,105,0.5), 0 0 80px rgba(5,150,105,0.2); }
     }
-  });
+    .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
+    
+    @keyframes fadeUp { 
+      from { opacity:0; transform:translateY(12px); } 
+      to { opacity:1; transform:translateY(0); } 
+    }
+    .fade-up { animation: fadeUp 0.5s ease-out forwards; opacity:0; }
+    
+    .scrollbar-thin::-webkit-scrollbar { height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #4b5563; }
+  </style>
+</head>
 
-  // Also disable/enable edit and delete buttons in tables
-  const editDelBtns = document.querySelectorAll('.edit-jadwal, .del-jadwal, .edit-tx, .del-tx');
-  editDelBtns.forEach(btn => {
-    btn.style.pointerEvents = isAdminMode ? 'auto' : 'none';
-    btn.style.opacity = isAdminMode ? '1' : '0.4';
-  });
-}
-
-document.getElementById('adminLoginForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const pwd = document.getElementById('adminPassword').value;
-  if (pwd === 'masjid123') {
-    isAdminMode = true;
-    document.getElementById('adminBar').classList.remove('hidden');
-    document.getElementById('adminBtn').classList.add('text-emerald-600');
-    updateAdminButtonStates();
-    const modal = document.getElementById('adminLoginModal');
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-    document.getElementById('adminPassword').value = '';
-    showToast('Admin mode diaktifkan');
-    lucide.createIcons();
-  } else {
-    showToast('Password salah');
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('adminPassword').focus();
-  }
-});
-
-document.getElementById('adminLogout').addEventListener('click', () => {
-  isAdminMode = false;
-  document.getElementById('adminBar').classList.add('hidden');
-  document.getElementById('adminBtn').classList.remove('text-emerald-600');
-  updateAdminButtonStates();
-  showToast('Admin mode dimatikan');
-});
-
-// ===== VALIDATION =====
-function isValidTimeFormat(timeStr) {
-  return /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr);
-}
-
-function isValidDateFormat(dateStr) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !isNaN(new Date(dateStr).getTime());
-}
-
-// ===== EDIT PRAYER TIMES =====
-document.getElementById('btnEditPrayers').addEventListener('click', () => {
-  if (!isAdminMode) {
-    showToast('Hanya admin yang dapat mengedit jadwal shalat');
-    return;
-  }
-  const formHTML = `<form id="editPrayersForm" class="space-y-3">
-    ${PRAYERS_EDITABLE.map(p => `
-      <div class="flex items-end gap-3">
-        <div class="flex-1">
-          <label class="block text-xs font-semibold text-gray-500 mb-1">${p.name}</label>
-          <input type="time" id="time-${p.id}" value="${p.time}" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
+<body class="h-full font-jakarta bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+  <div id="app" class="w-full h-full overflow-auto">
+    <!-- Header -->
+    <header class="w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center">
+            <svg width="22" height="22" viewbox="0 0 24 24" fill="none">
+              <path d="M12 2C12 2 8 6 8 10c0 1.5.5 2.8 1.3 3.8L6 17h12l-3.3-3.2C15.5 12.8 16 11.5 16 10c0-4-4-8-4-8z" fill="white" />
+              <rect x="6" y="17" width="12" height="2" rx="1" fill="white" />
+              <rect x="10" y="19" width="4" height="3" rx="0.5" fill="white" />
+            </svg>
+          </div>
+          <div>
+            <h1 id="headerMasjidName" class="text-lg font-bold text-gray-900 dark:text-white leading-tight">Masjid Al-Ikhlas</h1>
+            <p id="headerMasehiDate" class="text-xs text-gray-500 dark:text-gray-400"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="headerHijriDate" class="hidden sm:block text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/40 px-3 py-1.5 rounded-full"></span>
+          <button id="adminBtn" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Admin mode" title="Admin mode">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+          </button>
+          <button id="darkToggle" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle dark mode">
+            <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
+            <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+          </button>
         </div>
       </div>
-    `).join('')}
-    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm mt-4">Simpan Semua</button>
-  </form>`;
-  openModal('Edit Jadwal Shalat', formHTML);
-  document.getElementById('editPrayersForm').addEventListener('submit', e => {
-    e.preventDefault();
-    let isValid = true;
-  document.getElementById('editPrayersForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    let isValid = true;
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Menyimpan...';
-    btn.disabled = true;
+    </header>
 
-    for (const p of PRAYERS_EDITABLE) {
-      const newTime = document.getElementById(`time-${p.id}`).value;
-      if (!isValidTimeFormat(newTime)) {
-        showToast(`Format waktu tidak valid untuk ${p.name}`);
-        isValid = false;
-      }
-      if (isValid) {
-        p.time = newTime;
-        // Save to SDK
-        const existing = allData.find(d => d.prayer_id === p.id);
-        if (existing) {
-          await window.dataSdk.update({...existing, time: newTime});
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <!-- Hero Section -->
+      <section class="relative rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 p-6 sm:p-8 text-white overflow-hidden pulse-glow fade-up" style="animation-delay:0.1s">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        <div class="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+        <div class="relative z-10 flex flex-col items-center justify-center gap-2 text-center">
+          <p class="text-emerald-200 text-sm font-medium" id="heroDateDual"></p>
+          <p id="digitalClock" class="text-emerald-200 text-lg font-semibold tabular-nums">--:--:--</p>
+          <div class="flex flex-col items-center gap-1.5">
+            <p class="text-emerald-200 text-xs font-semibold uppercase tracking-wider">Menuju</p>
+            <p id="nextPrayerName" class="text-3xl sm:text-4xl font-bold">—</p>
+            <p id="countdownTimer" class="text-5xl sm:text-6xl font-extrabold tabular-nums tracking-tight">--:--:--</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Prayer Times Grid -->
+      <section class="fade-up" style="animation-delay:0.2s">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2">
+            <i data-lucide="clock" class="w-4 h-4"></i> Jadwal Shalat Hari Ini
+          </h2>
+          <button id="btnEditPrayers" class="inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Edit
+          </button>
+        </div>
+        <div id="prayerGrid" class="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-thin pb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
+      </section>
+
+      <!-- Kultum & Upcoming -->
+      <section class="grid md:grid-cols-2 gap-4 fade-up" style="animation-delay:0.25s">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2">
+              <i data-lucide="mic" class="w-4 h-4"></i> Progress Kultum
+            </h3>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-gray-600 dark:text-gray-400">Selesai</p>
+                <p id="kultumCompletedCount" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">0/0</p>
+              </div>
+              <div class="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                <div id="kultumProgressBar" class="bg-emerald-600 h-full rounded-full transition-all duration-500" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
+                <p class="text-xs text-gray-500 mb-1">Selesai</p>
+                <p id="kultumDone" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">0</p>
+              </div>
+              <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-xs text-gray-500 mb-1">Tidak Ada</p>
+                <p id="kultumMissed" class="text-lg font-bold text-gray-600 dark:text-gray-400">0</p>
+              </div>
+              <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                <p class="text-xs text-gray-500 mb-1">Terjadwal</p>
+                <p id="kultumScheduled" class="text-lg font-bold text-blue-600 dark:text-blue-400">0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4"></i> 7 Hari Mendatang
+            </h3>
+          </div>
+          <div id="upcomingScheduleList" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+            <p class="text-xs text-gray-400 text-center py-4">Memuat...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tabs Section -->
+      <section class="fade-up" style="animation-delay:0.3s">
+        <div class="flex gap-1 bg-gray-200 dark:bg-gray-800 rounded-xl p-1 mb-4 max-w-xs">
+          <button data-tab="jadwal" class="tab-btn flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">Jadwal</button>
+          <button data-tab="keuangan" class="tab-btn flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition-all text-gray-500 dark:text-gray-400 hover:text-gray-700">Keuangan</button>
+        </div>
+
+        <!-- Tab: Jadwal -->
+        <div id="tab-jadwal" class="tab-content">
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <button id="btnAddJadwal" class="admin-only inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i data-lucide="plus" class="w-4 h-4"></i> Tambah
+            </button>
+            <button id="btnBulkImport" class="admin-only inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i data-lucide="upload" class="w-4 h-4"></i> Bulk Import
+            </button>
+          </div>
+          <div class="mb-4 relative">
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+              <input type="text" id="jadwalSearch" placeholder="Cari kategori, penceramah, atau tanggal..." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-colors">
+            </div>
+          </div>
+          <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div class="overflow-x-auto scrollbar-thin">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-400">
+                    <th class="px-4 py-3">Kategori</th>
+                    <th class="px-4 py-3">Tanggal</th>
+                    <th class="px-4 py-3">Penceramah</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="jadwalBody" class="divide-y divide-gray-50 dark:divide-gray-800/50"></tbody>
+              </table>
+            </div>
+            <div id="jadwalEmpty" class="hidden text-center py-12 text-gray-400">
+              <i data-lucide="calendar-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+              <p class="text-sm">Belum ada jadwal. Klik "Tambah" untuk menambahkan.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Keuangan -->
+        <div id="tab-keuangan" class="tab-content hidden">
+          <div class="grid sm:grid-cols-2 gap-3 mb-4">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
+              <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Saldo</p>
+              <p id="totalBalance" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">Rp 0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
+              <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Pengeluaran Bulan Ini</p>
+              <p id="monthlyExpense" class="text-2xl font-extrabold text-red-500">Rp 0</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <button id="btnAddTx" class="admin-only inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i data-lucide="plus" class="w-4 h-4"></i> Tambah Transaksi
+            </button>
+            <button id="btnBulkImportTx" class="admin-only inline-flex items-center gap-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i data-lucide="upload" class="w-4 h-4"></i> Bulk Import
+            </button>
+          </div>
+          <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div class="overflow-x-auto scrollbar-thin">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-400">
+                    <th class="px-4 py-3">Tanggal</th>
+                    <th class="px-4 py-3">Keterangan</th>
+                    <th class="px-4 py-3 text-right">Jumlah</th>
+                    <th class="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="txBody" class="divide-y divide-gray-50 dark:divide-gray-800/50"></tbody>
+              </table>
+            </div>
+            <div id="txEmpty" class="hidden text-center py-12 text-gray-400">
+              <i data-lucide="wallet" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+              <p class="text-sm">Belum ada transaksi.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto px-4 py-6 text-center">
+      <p id="footerText" class="text-xs text-gray-400 dark:text-gray-600">Masjid Digital Information System • Powered by Firebase</p>
+    </footer>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="fixed inset-0 z-[130] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-sm p-6 shadow-2xl">
+        <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto mb-4 flex items-center justify-center">
+          <i data-lucide="lock" class="w-6 h-6 text-emerald-600"></i>
+        </div>
+        <h3 class="text-lg font-bold text-center mb-1">Admin Mode</h3>
+        <p class="text-xs text-gray-500 text-center mb-5">Masukkan password untuk mengakses mode admin</p>
+        <form id="adminLoginForm" class="space-y-4">
+          <div>
+            <input type="password" id="adminPassword" placeholder="Password" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="adminCancel" class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Batal</button>
+            <button type="submit" class="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">Login</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Admin Bar -->
+    <div id="adminBar" class="hidden fixed bottom-0 left-0 right-0 z-[125] bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i data-lucide="shield" class="w-4 h-4"></i>
+        <span class="text-sm font-semibold">MODE ADMIN AKTIF</span>
+      </div>
+      <button id="adminLogout" class="text-xs font-semibold hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">Logout</button>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
+      <div id="modalBox" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-md max-h-[90%] overflow-auto shadow-2xl">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
+          <h3 id="modalTitle" class="text-lg font-bold"></h3>
+          <button id="modalClose" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div id="modalBody" class="p-5"></div>
+      </div>
+    </div>
+
+    <!-- Delete Confirm -->
+    <div id="deleteConfirm" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none;">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 max-w-sm w-full text-center shadow-2xl">
+        <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-3 flex items-center justify-center">
+          <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
+        </div>
+        <p class="font-semibold mb-1">Hapus data ini?</p>
+        <p class="text-sm text-gray-500 mb-5">Tindakan ini tidak dapat dibatalkan.</p>
+        <div class="flex gap-2 justify-center">
+          <button id="delCancel" class="px-5 py-2 text-sm font-semibold rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Batal</button>
+          <button id="delConfirm" class="px-5 py-2 text-sm font-semibold rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors">Hapus</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[120] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium px-5 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 pointer-events-none translate-y-4"></div>
+  </div>
+
+  <script>
+    // ===== STATE =====
+    let allData = {
+      prayers: [],
+      jadwal: [],
+      transactions: []
+    };
+    
+    let deleteTarget = null;
+    let editTarget = null;
+    let activeTab = 'jadwal';
+    let isAdminMode = false;
+    let currentJadwalFilter = '';
+
+    const DEFAULT_PRAYERS = [
+      { id:'subuh', name:'Subuh', time:'04:35' },
+      { id:'dzuhur', name:'Dzuhur', time:'12:05' },
+      { id:'ashar', name:'Ashar', time:'15:20' },
+      { id:'maghrib', name:'Maghrib', time:'18:05' },
+      { id:'isya', name:'Isya', time:'19:15' }
+    ];
+
+    let PRAYERS_EDITABLE = [...DEFAULT_PRAYERS];
+
+    // ===== FIREBASE OPERATIONS =====
+    
+    // Listen to real-time updates
+    function setupFirebaseListeners() {
+      // Listen to prayers
+      db.collection('prayers').onSnapshot((snapshot) => {
+        const prayers = [];
+        snapshot.forEach((doc) => {
+          prayers.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (prayers.length > 0) {
+          PRAYERS_EDITABLE = DEFAULT_PRAYERS.map(p => {
+            const found = prayers.find(d => d.id === p.id);
+            return found ? { ...p, time: found.time } : p;
+          });
         } else {
-          await window.dataSdk.create({
-            type: 'prayer',
-            prayer_id: p.id,
-            time: newTime,
-            created_at: new Date().toISOString()
+          PRAYERS_EDITABLE = [...DEFAULT_PRAYERS];
+        }
+        
+        allData.prayers = prayers;
+        renderPrayerGrid();
+        updateClock();
+      });
+
+      // Listen to jadwal
+      db.collection('jadwal').orderBy('date', 'asc').onSnapshot((snapshot) => {
+        const jadwal = [];
+        snapshot.forEach((doc) => {
+          jadwal.push({ id: doc.id, ...doc.data() });
+        });
+        allData.jadwal = jadwal;
+        renderJadwal();
+      });
+
+      // Listen to transactions
+      db.collection('transactions').orderBy('created_at', 'desc').onSnapshot((snapshot) => {
+        const transactions = [];
+        snapshot.forEach((doc) => {
+          transactions.push({ id: doc.id, ...doc.data() });
+        });
+        allData.transactions = transactions;
+        renderKeuangan();
+      });
+    }
+
+    // CRUD Operations for Firestore
+    async function addJadwal(data) {
+      try {
+        await db.collection('jadwal').add({
+          category: data.category,
+          date: data.date,
+          speaker: data.speaker,
+          status: data.status,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error adding jadwal:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function updateJadwal(id, data) {
+      try {
+        await db.collection('jadwal').doc(id).update({
+          category: data.category,
+          date: data.date,
+          speaker: data.speaker,
+          status: data.status,
+          updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error updating jadwal:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function deleteJadwal(id) {
+      try {
+        await db.collection('jadwal').doc(id).delete();
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error deleting jadwal:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function addTransaction(data) {
+      try {
+        await db.collection('transactions').add({
+          date: data.date,
+          tx_type: data.tx_type,
+          description: data.description,
+          amount: data.amount,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error adding transaction:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function updateTransaction(id, data) {
+      try {
+        await db.collection('transactions').doc(id).update({
+          date: data.date,
+          tx_type: data.tx_type,
+          description: data.description,
+          amount: data.amount,
+          updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function deleteTransaction(id) {
+      try {
+        await db.collection('transactions').doc(id).delete();
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        return { isOk: false, error };
+      }
+    }
+
+    async function updatePrayerTime(prayerId, time) {
+      try {
+        const docRef = db.collection('prayers').doc(prayerId);
+        const doc = await docRef.get();
+        
+        if (doc.exists) {
+          await docRef.update({ time: time });
+        } else {
+          await docRef.set({
+            id: prayerId,
+            time: time,
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
           });
         }
+        return { isOk: true };
+      } catch (error) {
+        console.error('Error updating prayer time:', error);
+        return { isOk: false, error };
       }
     }
+
+    // ===== DATES =====
+    function getMasehiStr() {
+      return new Intl.DateTimeFormat('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' }).format(new Date());
+    }
     
-    btn.textContent = 'Simpan Semua';
-    btn.disabled = false;
-    
-    if (isValid) {
-      renderPrayerGrid();
-      updateClock();
-      showToast('Jadwal shalat berhasil diperbarui');
-      closeModal();
+    function getHijriStr() {
+      try {
+        return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { weekday:'long', year:'numeric', month:'long', day:'numeric' }).format(new Date());
+      } catch { 
+        return new Intl.DateTimeFormat('ar', { calendar:'islamic-umalqura', year:'numeric', month:'long', day:'numeric' }).format(new Date()); 
+      }
+    }
+
+    // ===== CLOCK & COUNTDOWN =====
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      document.getElementById('digitalClock').textContent = `${h}:${m}:${s}`;
+
+      const nowMin = now.getHours()*60 + now.getMinutes() + now.getSeconds()/60;
+      let next = null;
+      for (const p of PRAYERS_EDITABLE) {
+        const [ph,pm] = p.time.split(':').map(Number);
+        if (ph*60+pm > nowMin) { next = p; break; }
+      }
+      if (!next) next = PRAYERS_EDITABLE[0];
+
+      document.getElementById('nextPrayerName').textContent = next.name;
+
+      const [nh,nm] = next.time.split(':').map(Number);
+      let diffSec = (nh*60+nm)*60 - (now.getHours()*3600+now.getMinutes()*60+now.getSeconds());
+      if (diffSec < 0) diffSec += 86400;
+      const ch = String(Math.floor(diffSec/3600)).padStart(2,'0');
+      const cm = String(Math.floor((diffSec%3600)/60)).padStart(2,'0');
+      const cs = String(diffSec%60).padStart(2,'0');
+      document.getElementById('countdownTimer').textContent = `${ch}:${cm}:${cs}`;
+
+      document.querySelectorAll('.prayer-card').forEach(el => {
+        const isNext = el.dataset.prayer === next.id;
+        el.classList.toggle('ring-2', isNext);
+        el.classList.toggle('ring-emerald-500', isNext);
+        el.classList.toggle('bg-emerald-50', isNext);
+        el.classList.toggle('dark:bg-emerald-900/20', isNext);
+      });
+    }
+
+    // ===== RENDER FUNCTIONS =====
+    function renderPrayerGrid() {
+      const grid = document.getElementById('prayerGrid');
+      grid.innerHTML = PRAYERS_EDITABLE.map(p => `
+        <div class="prayer-card flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 sm:p-4 text-center transition-all duration-300 min-w-[100px] sm:min-w-[120px]" data-prayer="${p.id}">
+          <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-gray-400 mb-1">${p.name}</p>
+          <p class="text-lg sm:text-xl font-extrabold tabular-nums">${p.time}</p>
+        </div>
+      `).join('');
+    }
+
+    function updateDates() {
+      const masehi = getMasehiStr();
+      const hijri = getHijriStr();
+      document.getElementById('headerMasehiDate').textContent = masehi;
+      document.getElementById('headerHijriDate').textContent = hijri;
+      document.getElementById('heroDateDual').textContent = `${masehi} • ${hijri}`;
+    }
+
+    function renderJadwal() {
+      const items = filterJadwal();
+      const body = document.getElementById('jadwalBody');
+      const empty = document.getElementById('jadwalEmpty');
+
+      if (!items.length) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      body.innerHTML = items.map(item => {
+        const statusColor = item.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+          : item.status === 'Tidak Ada' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800/40 dark:text-gray-400'
+          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400';
+        
+        return `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" data-id="${item.id}">
+            <td class="px-4 py-3 font-medium">${item.category||'-'}</td>
+            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">${item.date||'-'}</td>
+            <td class="px-4 py-3">${item.speaker||'-'}</td>
+            <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ${statusColor}">${item.status||'-'}</span></td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button class="edit-jadwal inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-emerald-600 transition-colors" onclick="handleEditJadwal('${item.id}')" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};">
+                <i data-lucide="edit" class="w-3.5 h-3.5"></i>
+              </button>
+              <button class="del-jadwal inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-colors" onclick="handleDeleteJadwal('${item.id}')" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      updateKultumProgress();
+      updateUpcomingSchedule();
       lucide.createIcons();
     }
-  });
-  });
-});
 
-// ===== MODAL =====
-function openModal(title, bodyHTML) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = bodyHTML;
-  const overlay = document.getElementById('modalOverlay');
-  overlay.style.display = 'flex';
-  overlay.classList.remove('hidden');
-  lucide.createIcons();
-}
-function closeModal() {
-  const overlay = document.getElementById('modalOverlay');
-  overlay.style.display = 'none';
-  overlay.classList.add('hidden');
-  editTarget = null;
-}
-document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
-
-// ===== DELETE CONFIRM =====
-function openDeleteConfirm(record) {
-  deleteTarget = record;
-  const dc = document.getElementById('deleteConfirm');
-  dc.style.display = 'flex';
-  dc.classList.remove('hidden');
-}
-function closeDeleteConfirm() {
-  deleteTarget = null;
-  const dc = document.getElementById('deleteConfirm');
-  dc.style.display = 'none';
-  dc.classList.add('hidden');
-}
-document.getElementById('delCancel').addEventListener('click', closeDeleteConfirm);
-document.getElementById('delConfirm').addEventListener('click', async () => {
-  if (!deleteTarget) return;
-  const btn = document.getElementById('delConfirm');
-  btn.textContent = '...';
-  btn.disabled = true;
-  const res = await window.dataSdk.delete(deleteTarget);
-  btn.textContent = 'Hapus';
-  btn.disabled = false;
-  if (res.isOk) showToast('Data berhasil dihapus');
-  else showToast('Gagal menghapus data');
-  closeDeleteConfirm();
-});
-
-// ===== TOAST (with queue support) =====
-let toastQueue = [];
-let toastVisible = false;
-
-function showToast(msg) {
-  toastQueue.push(msg);
-  if (!toastVisible) showNextToast();
-}
-
-function showNextToast() {
-  if (toastQueue.length === 0) {
-    toastVisible = false;
-    return;
-  }
-  
-  toastVisible = true;
-  const msg = toastQueue.shift();
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.remove('opacity-0','pointer-events-none','translate-y-4');
-  setTimeout(() => {
-    t.classList.add('opacity-0','pointer-events-none','translate-y-4');
-    setTimeout(showNextToast, 300);
-  }, 2500);
-}
-
-// ===== FORMAT CURRENCY =====
-function formatRp(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
-
-// ===== JADWAL FORM =====
-function jadwalFormHTML(data) {
-  const cat = data?.category || '';
-  const dt = data?.date || '';
-  const sp = data?.speaker || '';
-  const st = data?.status || 'Terjadwal';
-  return `<form id="jadwalForm" class="space-y-4">
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jCat">Kategori</label>
-    <select id="jCat" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-      <option ${cat==='Khutbah Jumat'?'selected':''}>Khutbah Jumat</option>
-      <option ${cat==='Kajian Rutin'?'selected':''}>Kajian Rutin</option>
-      <option ${cat==='Tabligh Akbar'?'selected':''}>Tabligh Akbar</option>
-      <option ${cat==='Pengajian Ibu-ibu'?'selected':''}>Pengajian Ibu-ibu</option>
-      <option ${cat==='Kultum'?'selected':''}>Kultum</option>
-      <option ${cat==='Lainnya'?'selected':''}>Lainnya</option>
-    </select></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jDate">Tanggal</label>
-    <input type="date" id="jDate" value="${dt}" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jSpeaker">Penceramah</label>
-    <input type="text" id="jSpeaker" value="${sp}" placeholder="Nama Ustadz" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jStatus">Status</label>
-    <select id="jStatus" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-      <option ${st==='Terjadwal'?'selected':''}>Terjadwal</option>
-      <option ${st==='Selesai'?'selected':''}>Selesai</option>
-      <option ${st==='Tidak Ada'?'selected':''}>Tidak Ada</option>
-    </select></div>
-    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">${data?'Simpan':'Tambah'}</button>
-  </form>`;
-}
-
-document.getElementById('btnAddJadwal').addEventListener('click', () => {
-  editTarget = null;
-  openModal('Tambah Jadwal', jadwalFormHTML());
-  attachJadwalForm();
-});
-
-function attachJadwalForm() {
-  document.getElementById('jadwalForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const obj = {
-      type: 'jadwal',
-      category: document.getElementById('jCat').value,
-      date: document.getElementById('jDate').value,
-      speaker: document.getElementById('jSpeaker').value,
-      status: document.getElementById('jStatus').value,
-      created_at: editTarget ? editTarget.created_at : new Date().toISOString()
-    };
-    if (allData.filter(d=>d.type==='jadwal').length >= 999 && !editTarget) {
-      showToast('Batas data tercapai (999)');
-      return;
-    }
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Menyimpan...';
-    btn.disabled = true;
-    let res;
-    if (editTarget) {
-      res = await window.dataSdk.update({...editTarget, ...obj});
-    } else {
-      res = await window.dataSdk.create(obj);
-    }
-    if (res.isOk) showToast(editTarget?'Jadwal diperbarui':'Jadwal ditambahkan');
-    else showToast('Gagal menyimpan');
-    closeModal();
-  });
-}
-
-// ===== BULK IMPORT =====
-document.getElementById('btnBulkImport').addEventListener('click', () => {
-  openModal('Bulk Import Jadwal', `
-    <p class="text-xs text-gray-500 mb-3">Format per baris: <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">Kategori | Tanggal (YYYY-MM-DD) | Penceramah | Status</code></p>
-    <form id="bulkForm" class="space-y-4">
-      <textarea id="bulkText" rows="6" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="Khutbah Jumat | 2025-01-10 | Ustadz Ahmad | Terjadwal"></textarea>
-      <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">Import</button>
-    </form>`);
-  document.getElementById('bulkForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const lines = document.getElementById('bulkText').value.trim().split('\n').filter(Boolean);
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Importing...';
-    btn.disabled = true;
-    let count = 0;
-    let errors = 0;
-    
-    for (const line of lines) {
-      const parts = line.split('|').map(s=>s.trim());
-      if (parts.length >= 3) {
-        const dateStr = parts[1];
-        // Validate date format
-        if (!isValidDateFormat(dateStr)) {
-          errors++;
-          showToast(`Format tanggal tidak valid: ${dateStr}`);
-          continue;
-        }
-        const res = await window.dataSdk.create({
-          type:'jadwal', category:parts[0], date:parts[1], speaker:parts[2], status:parts[3]||'Terjadwal', created_at: new Date().toISOString()
-        });
-        if (res.isOk) count++;
-        else errors++;
-      } else {
-        errors++;
-      }
-    }
-    btn.textContent = 'Import';
-    btn.disabled = false;
-    showToast(`${count} jadwal berhasil diimport${errors > 0 ? `, ${errors} gagal` : ''}`);
-    if (count > 0) closeModal();
-  });
-});
-
-// ===== TRANSACTION FORM =====
-function txFormHTML(data) {
-  const desc = data?.description || '';
-  const amt = data?.amount || '';
-  const tt = data?.tx_type || 'Pemasukan';
-  const dt = data?.date || new Date().toISOString().split('T')[0];
-  return `<form id="txForm" class="space-y-4">
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txDate">Tanggal</label>
-    <input type="date" id="txDate" value="${dt}" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txType">Tipe</label>
-    <select id="txType" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-      <option ${tt==='Pemasukan'?'selected':''}>Pemasukan</option>
-      <option ${tt==='Pengeluaran'?'selected':''}>Pengeluaran</option>
-    </select></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txDesc">Keterangan</label>
-    <input type="text" id="txDesc" value="${desc}" placeholder="Infaq Jumat" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-    <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txAmt">Jumlah (Rp)</label>
-    <input type="number" id="txAmt" value="${amt}" placeholder="500000" min="1" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">${data?'Simpan':'Tambah'}</button>
-  </form>`;
-}
-
-document.getElementById('btnAddTx').addEventListener('click', () => {
-  editTarget = null;
-  openModal('Tambah Transaksi', txFormHTML());
-  attachTxForm();
-});
-
-// ===== BULK IMPORT TRANSAKSI =====
-document.getElementById('btnBulkImportTx').addEventListener('click', () => {
-  openModal('Bulk Import Transaksi', `
-    <div class="space-y-3">
-      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-        <p class="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2">📋 Panduan Format:</p>
-        <p class="text-xs text-blue-600 dark:text-blue-300 mb-2">Setiap baris: <code class="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded text-xs font-mono">Tanggal (YYYY-MM-DD) | Tipe | Keterangan | Jumlah</code></p>
-        <p class="text-xs text-blue-600 dark:text-blue-300 mb-2"><strong>Tipe:</strong> Pemasukan atau Pengeluaran</p>
-        <div class="bg-white dark:bg-gray-800 rounded p-2 text-xs font-mono text-gray-700 dark:text-gray-300 space-y-1">
-          <p>2025-01-15 | Pemasukan | Infaq Jumat | 500000</p>
-          <p>2025-01-16 | Pengeluaran | Listrik | 150000</p>
-          <p>2025-01-17 | Pemasukan | Zakat | 1000000</p>
-        </div>
-      </div>
-    </div>
-    <form id="bulkTxForm" class="space-y-4 mt-4">
-      <textarea id="bulkTxText" rows="8" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="2025-01-15 | Pemasukan | Infaq Jumat | 500000&#10;2025-01-16 | Pengeluaran | Listrik | 150000" required></textarea>
-      <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">Import Transaksi</button>
-    </form>`);
-  document.getElementById('bulkTxForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const lines = document.getElementById('bulkTxText').value.trim().split('\n').filter(Boolean);
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Importing...';
-    btn.disabled = true;
-    let count = 0;
-    let errors = 0;
-
-    for (const line of lines) {
-      const parts = line.split('|').map(s => s.trim());
-      if (parts.length >= 4) {
-        const [dateStr, txType, desc, amtStr] = parts;
-        const amount = Number(amtStr);
-        if (dateStr && txType && desc && amount > 0) {
-          const res = await window.dataSdk.create({
-            type: 'transaction',
-            tx_type: txType,
-            description: desc,
-            amount: amount,
-            date: dateStr,
-            created_at: new Date().toISOString()
-          });
-          if (res.isOk) count++;
-          else errors++;
-        } else {
-          errors++;
-        }
-      } else {
-        errors++;
-      }
-    }
-    btn.textContent = 'Import Transaksi';
-    btn.disabled = false;
-    if (count > 0) showToast(`${count} transaksi berhasil diimport${errors > 0 ? `, ${errors} gagal` : ''}`);
-    else showToast('Format tidak valid. Cek kembali data Anda.');
-    if (count > 0) closeModal();
-  });
-});
-
-function attachTxForm() {
-  document.getElementById('txForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const obj = {
-      type: 'transaction',
-      date: document.getElementById('txDate').value,
-      tx_type: document.getElementById('txType').value,
-      description: document.getElementById('txDesc').value,
-      amount: Number(document.getElementById('txAmt').value),
-      created_at: editTarget ? editTarget.created_at : new Date().toISOString()
-    };
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Menyimpan...';
-    btn.disabled = true;
-    let res;
-    if (editTarget) res = await window.dataSdk.update({...editTarget,...obj});
-    else res = await window.dataSdk.create(obj);
-    if (res.isOk) showToast(editTarget?'Transaksi diperbarui':'Transaksi ditambahkan');
-    else showToast('Gagal menyimpan');
-    closeModal();
-  });
-}
-
-// ===== RENDER DATA =====
-let currentJadwalFilter = '';
-
-function filterJadwal() {
-  const query = (currentJadwalFilter || '').toLowerCase();
-  const items = allData
-    .filter(d => d.type === 'jadwal')
-    .filter(d => {
-      if (!query) return true;
-      const cat = (d.category || '').toLowerCase();
-      const speaker = (d.speaker || '').toLowerCase();
-      const date = (d.date || '').toLowerCase();
-      return cat.includes(query) || speaker.includes(query) || date.includes(query);
-    })
-    .sort((a,b) => (a.date||'').localeCompare(b.date||''));
-  return items;
-}
-
-function renderJadwal() {
-  const items = filterJadwal();
-  const body = document.getElementById('jadwalBody');
-  const empty = document.getElementById('jadwalEmpty');
-
-  if (!items.length) {
-    body.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-
-  const existingRows = new Map([...body.children].map(r => [r.dataset.id, r]));
-  const fragment = document.createDocumentFragment();
-
-  items.forEach(item => {
-    const id = item.__backendId;
-    let row = existingRows.get(id);
-    if (!row) {
-      row = document.createElement('tr');
-      row.dataset.id = id;
-      row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
-    }
-    const statusColor = item.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-      : item.status === 'Tidak Ada' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800/40 dark:text-gray-400'
-      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400';
-    row.innerHTML = `
-      <td class="px-4 py-3 font-medium">${item.category||'-'}</td>
-      <td class="px-4 py-3 text-gray-500 dark:text-gray-400">${item.date||'-'}</td>
-      <td class="px-4 py-3">${item.speaker||'-'}</td>
-      <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ${statusColor}">${item.status||'-'}</span></td>
-      <td class="px-4 py-3 text-right whitespace-nowrap">
-        <button class="edit-jadwal inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-emerald-600 transition-colors" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
-        <button class="del-jadwal inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-colors" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-      </td>`;
-    row.querySelector('.edit-jadwal').onclick = () => {
-      editTarget = item;
-      openModal('Edit Jadwal', jadwalFormHTML(item));
-      attachJadwalForm();
-    };
-    row.querySelector('.del-jadwal').onclick = () => openDeleteConfirm(item);
-    existingRows.delete(id);
-    fragment.appendChild(row);
-  });
-
-  existingRows.forEach(r => r.remove());
-  body.innerHTML = '';
-  body.appendChild(fragment);
-  
-  // Update Kultum Progress & Upcoming Schedule
-  updateKultumProgress();
-  updateUpcomingSchedule();
-  
-  lucide.createIcons();
-}
-
-function updateKultumProgress() {
-  const kultumItems = allData.filter(d => d.type === 'jadwal' && d.category === 'Kultum');
-  const done = kultumItems.filter(d => d.status === 'Selesai').length;
-  const missed = kultumItems.filter(d => d.status === 'Tidak Ada').length;
-  const scheduled = kultumItems.filter(d => d.status === 'Terjadwal').length;
-  const total = kultumItems.length || 1;
-  const percentage = total ? Math.round((done / total) * 100) : 0;
-
-  document.getElementById('kultumDone').textContent = done;
-  document.getElementById('kultumMissed').textContent = missed;
-  document.getElementById('kultumScheduled').textContent = scheduled;
-  document.getElementById('kultumCompletedCount').textContent = `${done}/${total}`;
-  document.getElementById('kultumProgressBar').style.width = `${percentage}%`;
-}
-
-function updateUpcomingSchedule() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const nextWeek = new Date(today);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-
-  const upcomingItems = allData
-    .filter(d => d.type === 'jadwal')
-    .filter(d => {
-      if (!d.date) return false;
-      const itemDate = new Date(d.date + 'T00:00:00');
-      return itemDate >= today && itemDate < nextWeek;
-    })
-    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-    .slice(0, 7);
-
-  const container = document.getElementById('upcomingScheduleList');
-  
-  if (!upcomingItems.length) {
-    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Tidak ada jadwal</p>';
-    return;
-  }
-
-  container.innerHTML = upcomingItems.map(item => {
-    const dateObj = new Date(item.date + 'T00:00:00');
-    const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
-    
-    const statusColor = item.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-      : item.status === 'Tidak Ada' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400';
-
-    return `
-      <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-        <div class="flex-1">
-          <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">${dateStr}</p>
-          <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${item.category || '-'}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">${item.speaker || '-'}</p>
-        </div>
-        <span class="text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ml-2 ${statusColor}">${item.status || '-'}</span>
-      </div>
-    `;
-  }).join('');
-
-  lucide.createIcons();
-}
-
-function renderKeuangan() {
-  const txs = allData.filter(d => d.type === 'transaction').sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
-  const body = document.getElementById('txBody');
-  const empty = document.getElementById('txEmpty');
-
-  let balance = 0;
-  let monthlyExp = 0;
-  const now = new Date();
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
-  txs.forEach(t => {
-    const amt = Number(t.amount)||0;
-    if (t.tx_type === 'Pemasukan') balance += amt;
-    else { 
-      balance -= amt;
-      // Use date field if available, otherwise fall back to created_at
-      const txMonth = t.date ? t.date.substring(0, 7) : (t.created_at ? new Date(t.created_at).toISOString().substring(0, 7) : '');
-      if (txMonth === thisMonth) monthlyExp += amt;
-    }
-  });
-
-  document.getElementById('totalBalance').textContent = formatRp(balance);
-  document.getElementById('monthlyExpense').textContent = formatRp(monthlyExp);
-
-  if (!txs.length) {
-    body.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-
-  const existingRows = new Map([...body.children].map(r => [r.dataset.id, r]));
-  const fragment = document.createDocumentFragment();
-  
-  txs.forEach(t => {
-    const id = t.__backendId;
-    let row = existingRows.get(id);
-    if (!row) {
-      row = document.createElement('tr');
-      row.dataset.id = id;
-      row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
-    }
-    const isIn = t.tx_type === 'Pemasukan';
-    const d = t.date ? new Date(t.date + 'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-';
-    row.innerHTML = `
-      <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">${d}</td>
-      <td class="px-4 py-3 font-medium">${t.description||'-'}</td>
-      <td class="px-4 py-3 text-right font-semibold ${isIn?'text-emerald-600 dark:text-emerald-400':'text-red-500'}">${isIn?'+':'-'} ${formatRp(t.amount)}</td>
-      <td class="px-4 py-3 text-right whitespace-nowrap">
-        <button class="edit-tx inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-emerald-600 transition-colors" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
-        <button class="del-tx inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-colors" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-      </td>`;
-    row.querySelector('.edit-tx').onclick = () => {
-      editTarget = t;
-      openModal('Edit Transaksi', txFormHTML(t));
-      attachTxForm();
-    };
-    row.querySelector('.del-tx').onclick = () => openDeleteConfirm(t);
-    existingRows.delete(id);
-    fragment.appendChild(row);
-  });
-  
-  existingRows.forEach(r => r.remove());
-  body.innerHTML = '';
-  body.appendChild(fragment);
-  lucide.createIcons();
-}
-
-// ===== DATA SDK =====
-const dataHandler = {
-  onDataChanged(data) {
-    allData = data;
-    
-    // Load prayer times from SDK
-    const prayerData = data.filter(d => d.prayer_id);
-    if (prayerData.length > 0) {
-      PRAYERS_EDITABLE = DEFAULT_PRAYERS.map(p => {
-        const found = prayerData.find(d => d.prayer_id === p.id);
-        return found ? { ...p, time: found.time } : p;
+    function filterJadwal() {
+      const query = (currentJadwalFilter || '').toLowerCase();
+      return allData.jadwal.filter(d => {
+        if (!query) return true;
+        const cat = (d.category || '').toLowerCase();
+        const speaker = (d.speaker || '').toLowerCase();
+        const date = (d.date || '').toLowerCase();
+        return cat.includes(query) || speaker.includes(query) || date.includes(query);
       });
-    } else {
-      PRAYERS_EDITABLE = [...DEFAULT_PRAYERS];
     }
-    
-    renderPrayerGrid();
-    updateClock();
-    renderJadwal();
-    renderKeuangan();
-  }
-};
 
-// ===== ELEMENT SDK =====
-function applyConfig(config) {
-  const name = config.masjid_name || defaultConfig.masjid_name;
-  const footer = config.footer_text || defaultConfig.footer_text;
-  document.getElementById('headerMasjidName').textContent = name;
-  document.getElementById('footerText').textContent = footer;
+    function updateKultumProgress() {
+      const kultumItems = allData.jadwal.filter(d => d.category === 'Kultum');
+      const done = kultumItems.filter(d => d.status === 'Selesai').length;
+      const missed = kultumItems.filter(d => d.status === 'Tidak Ada').length;
+      const scheduled = kultumItems.filter(d => d.status === 'Terjadwal').length;
+      const total = kultumItems.length || 1;
+      const percentage = total ? Math.round((done / total) * 100) : 0;
 
-  const font = config.font_family || defaultConfig.font_family;
-  document.body.style.fontFamily = `${font}, Plus Jakarta Sans, sans-serif`;
+      document.getElementById('kultumDone').textContent = done;
+      document.getElementById('kultumMissed').textContent = missed;
+      document.getElementById('kultumScheduled').textContent = scheduled;
+      document.getElementById('kultumCompletedCount').textContent = `${done}/${total}`;
+      document.getElementById('kultumProgressBar').style.width = `${percentage}%`;
+    }
 
-  const base = config.font_size || defaultConfig.font_size;
-  document.body.style.fontSize = base + 'px';
-}
+    function updateUpcomingSchedule() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7);
 
-window.elementSdk.init({
-  defaultConfig,
-  onConfigChange: async (config) => applyConfig(config),
-  mapToCapabilities: (config) => ({
-    recolorables: [
-      { get: () => config.background_color || defaultConfig.background_color, set: v => { config.background_color = v; window.elementSdk.setConfig({background_color:v}); }},
-      { get: () => config.surface_color || defaultConfig.surface_color, set: v => { config.surface_color = v; window.elementSdk.setConfig({surface_color:v}); }},
-      { get: () => config.text_color || defaultConfig.text_color, set: v => { config.text_color = v; window.elementSdk.setConfig({text_color:v}); }},
-      { get: () => config.accent_color || defaultConfig.accent_color, set: v => { config.accent_color = v; window.elementSdk.setConfig({accent_color:v}); }},
-      { get: () => config.secondary_action_color || defaultConfig.secondary_action_color, set: v => { config.secondary_action_color = v; window.elementSdk.setConfig({secondary_action_color:v}); }}
-    ],
-    borderables: [],
-    fontEditable: { get: () => config.font_family || defaultConfig.font_family, set: v => { config.font_family = v; window.elementSdk.setConfig({font_family:v}); }},
-    fontSizeable: { get: () => config.font_size || defaultConfig.font_size, set: v => { config.font_size = v; window.elementSdk.setConfig({font_size:v}); }}
-  }),
-  mapToEditPanelValues: (config) => new Map([
-    ['masjid_name', config.masjid_name || defaultConfig.masjid_name],
-    ['masjid_address', config.masjid_address || defaultConfig.masjid_address],
-    ['footer_text', config.footer_text || defaultConfig.footer_text]
-  ])
-});
+      const upcomingItems = allData.jadwal
+        .filter(d => d.date && new Date(d.date + 'T00:00:00') >= today && new Date(d.date + 'T00:00:00') < nextWeek)
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        .slice(0, 7);
 
-// ===== INIT =====
-(async () => {
-  const res = await window.dataSdk.init(dataHandler);
-  if (!res.isOk) console.error('Data SDK init failed');
-  renderPrayerGrid();
-  updateDates();
-  updateClock();
-  updateAdminButtonStates();
-  setInterval(updateClock, 1000);
-  setInterval(updateDates, 60000);
-  
-  // Jadwal search listener
-  document.getElementById('jadwalSearch').addEventListener('input', (e) => {
-    currentJadwalFilter = e.target.value;
-    renderJadwal();
-  });
-  
-  lucide.createIcons();
-})();
-</script>
-  </div>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a054fed78dc43e1d',t:'MTc4MDM4Nzk3MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+      const container = document.getElementById('upcomingScheduleList');
+      
+      if (!upcomingItems.length) {
+        container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Tidak ada jadwal</p>';
+        return;
+      }
+
+      container.innerHTML = upcomingItems.map(item => {
+        const dateObj = new Date(item.date + 'T00:00:00');
+        const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+        const statusColor = item.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+          : item.status === 'Tidak Ada' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400';
+
+        return `
+          <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <div class="flex-1">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">${dateStr}</p>
+              <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${item.category || '-'}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${item.speaker || '-'}</p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ml-2 ${statusColor}">${item.status || '-'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderKeuangan() {
+      const txs = allData.transactions;
+      const body = document.getElementById('txBody');
+      const empty = document.getElementById('txEmpty');
+
+      let balance = 0;
+      let monthlyExp = 0;
+      const now = new Date();
+      const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+      txs.forEach(t => {
+        const amt = Number(t.amount)||0;
+        if (t.tx_type === 'Pemasukan') balance += amt;
+        else { 
+          balance -= amt;
+          const txMonth = t.date ? t.date.substring(0, 7) : '';
+          if (txMonth === thisMonth) monthlyExp += amt;
+        }
+      });
+
+      document.getElementById('totalBalance').textContent = formatRp(balance);
+      document.getElementById('monthlyExpense').textContent = formatRp(monthlyExp);
+
+      if (!txs.length) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      body.innerHTML = txs.map(t => {
+        const isIn = t.tx_type === 'Pemasukan';
+        const d = t.date ? new Date(t.date + 'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-';
+        
+        return `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" data-id="${t.id}">
+            <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">${d}</td>
+            <td class="px-4 py-3 font-medium">${t.description||'-'}</td>
+            <td class="px-4 py-3 text-right font-semibold ${isIn?'text-emerald-600 dark:text-emerald-400':'text-red-500'}">${isIn?'+':'-'} ${formatRp(t.amount)}</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button class="edit-tx inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-emerald-600 transition-colors" onclick="handleEditTx('${t.id}')" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};">
+                <i data-lucide="edit" class="w-3.5 h-3.5"></i>
+              </button>
+              <button class="del-tx inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-colors" onclick="handleDeleteTx('${t.id}')" style="opacity: ${isAdminMode ? '1' : '0.4'}; pointer-events: ${isAdminMode ? 'auto' : 'none'};">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      lucide.createIcons();
+    }
+
+    function formatRp(n) { 
+      return 'Rp ' + Number(n||0).toLocaleString('id-ID'); 
+    }
+
+    // ===== HANDLERS =====
+    window.handleEditJadwal = function(id) {
+      if (!isAdminMode) return;
+      const item = allData.jadwal.find(d => d.id === id);
+      if (item) {
+        editTarget = item;
+        openModal('Edit Jadwal', jadwalFormHTML(item));
+        attachJadwalForm();
+      }
+    };
+
+    window.handleDeleteJadwal = function(id) {
+      if (!isAdminMode) return;
+      const item = allData.jadwal.find(d => d.id === id);
+      if (item) {
+        deleteTarget = { type: 'jadwal', id: id, data: item };
+        openDeleteConfirm();
+      }
+    };
+
+    window.handleEditTx = function(id) {
+      if (!isAdminMode) return;
+      const item = allData.transactions.find(d => d.id === id);
+      if (item) {
+        editTarget = item;
+        openModal('Edit Transaksi', txFormHTML(item));
+        attachTxForm();
+      }
+    };
+
+    window.handleDeleteTx = function(id) {
+      if (!isAdminMode) return;
+      const item = allData.transactions.find(d => d.id === id);
+      if (item) {
+        deleteTarget = { type: 'transaction', id: id, data: item };
+        openDeleteConfirm();
+      }
+    };
+
+    // ===== FORM GENERATORS =====
+    function jadwalFormHTML(data) {
+      const cat = data?.category || '';
+      const dt = data?.date || '';
+      const sp = data?.speaker || '';
+      const st = data?.status || 'Terjadwal';
+      
+      return `<form id="jadwalForm" class="space-y-4">
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jCat">Kategori</label>
+        <select id="jCat" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+          <option ${cat==='Khutbah Jumat'?'selected':''}>Khutbah Jumat</option>
+          <option ${cat==='Kajian Rutin'?'selected':''}>Kajian Rutin</option>
+          <option ${cat==='Tabligh Akbar'?'selected':''}>Tabligh Akbar</option>
+          <option ${cat==='Pengajian Ibu-ibu'?'selected':''}>Pengajian Ibu-ibu</option>
+          <option ${cat==='Kultum'?'selected':''}>Kultum</option>
+          <option ${cat==='Lainnya'?'selected':''}>Lainnya</option>
+        </select></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jDate">Tanggal</label>
+        <input type="date" id="jDate" value="${dt}" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jSpeaker">Penceramah</label>
+        <input type="text" id="jSpeaker" value="${sp}" placeholder="Nama Ustadz" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="jStatus">Status</label>
+        <select id="jStatus" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+          <option ${st==='Terjadwal'?'selected':''}>Terjadwal</option>
+          <option ${st==='Selesai'?'selected':''}>Selesai</option>
+          <option ${st==='Tidak Ada'?'selected':''}>Tidak Ada</option>
+        </select></div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">${data?'Simpan':'Tambah'}</button>
+      </form>`;
+    }
+
+    function txFormHTML(data) {
+      const desc = data?.description || '';
+      const amt = data?.amount || '';
+      const tt = data?.tx_type || 'Pemasukan';
+      const dt = data?.date || new Date().toISOString().split('T')[0];
+      
+      return `<form id="txForm" class="space-y-4">
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txDate">Tanggal</label>
+        <input type="date" id="txDate" value="${dt}" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txType">Tipe</label>
+        <select id="txType" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+          <option ${tt==='Pemasukan'?'selected':''}>Pemasukan</option>
+          <option ${tt==='Pengeluaran'?'selected':''}>Pengeluaran</option>
+        </select></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txDesc">Keterangan</label>
+        <input type="text" id="txDesc" value="${desc}" placeholder="Infaq Jumat" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+        <div><label class="block text-xs font-semibold text-gray-500 mb-1" for="txAmt">Jumlah (Rp)</label>
+        <input type="number" id="txAmt" value="${amt}" placeholder="500000" min="1" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">${data?'Simpan':'Tambah'}</button>
+      </form>`;
+    }
+
+    // ===== EVENT LISTENERS =====
+    document.getElementById('btnAddJadwal').addEventListener('click', () => {
+      editTarget = null;
+      openModal('Tambah Jadwal', jadwalFormHTML());
+      attachJadwalForm();
+    });
+
+    function attachJadwalForm() {
+      document.getElementById('jadwalForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const data = {
+          category: document.getElementById('jCat').value,
+          date: document.getElementById('jDate').value,
+          speaker: document.getElementById('jSpeaker').value,
+          status: document.getElementById('jStatus').value
+        };
+        
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Menyimpan...';
+        btn.disabled = true;
+        
+        let result;
+        if (editTarget) {
+          result = await updateJadwal(editTarget.id, data);
+        } else {
+          result = await addJadwal(data);
+        }
+        
+        if (result.isOk) {
+          showToast(editTarget ? 'Jadwal diperbarui' : 'Jadwal ditambahkan');
+          closeModal();
+        } else {
+          showToast('Gagal menyimpan');
+        }
+        
+        btn.textContent = editTarget ? 'Simpan' : 'Tambah';
+        btn.disabled = false;
+      });
+    }
+
+    document.getElementById('btnAddTx').addEventListener('click', () => {
+      editTarget = null;
+      openModal('Tambah Transaksi', txFormHTML());
+      attachTxForm();
+    });
+
+    function attachTxForm() {
+      document.getElementById('txForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const data = {
+          date: document.getElementById('txDate').value,
+          tx_type: document.getElementById('txType').value,
+          description: document.getElementById('txDesc').value,
+          amount: Number(document.getElementById('txAmt').value)
+        };
+        
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Menyimpan...';
+        btn.disabled = true;
+        
+        let result;
+        if (editTarget) {
+          result = await updateTransaction(editTarget.id, data);
+        } else {
+          result = await addTransaction(data);
+        }
+        
+        if (result.isOk) {
+          showToast(editTarget ? 'Transaksi diperbarui' : 'Transaksi ditambahkan');
+          closeModal();
+        } else {
+          showToast('Gagal menyimpan');
+        }
+        
+        btn.textContent = editTarget ? 'Simpan' : 'Tambah';
+        btn.disabled = false;
+      });
+    }
+
+    // ===== DELETE CONFIRM =====
+    function openDeleteConfirm() {
+      const dc = document.getElementById('deleteConfirm');
+      dc.style.display = 'flex';
+      dc.classList.remove('hidden');
+    }
+
+    function closeDeleteConfirm() {
+      deleteTarget = null;
+      const dc = document.getElementById('deleteConfirm');
+      dc.style.display = 'none';
+      dc.classList.add('hidden');
+    }
+
+    document.getElementById('delCancel').addEventListener('click', closeDeleteConfirm);
+
+    document.getElementById('delConfirm').addEventListener('click', async () => {
+      if (!deleteTarget) return;
+      
+      const btn = document.getElementById('delConfirm');
+      btn.textContent = '...';
+      btn.disabled = true;
+      
+      let result;
+      if (deleteTarget.type === 'jadwal') {
+        result = await deleteJadwal(deleteTarget.id);
+      } else if (deleteTarget.type === 'transaction') {
+        result = await deleteTransaction(deleteTarget.id);
+      }
+      
+      if (result && result.isOk) {
+        showToast('Data berhasil dihapus');
+      } else {
+        showToast('Gagal menghapus data');
+      }
+      
+      btn.textContent = 'Hapus';
+      btn.disabled = false;
+      closeDeleteConfirm();
+    });
+
+    // ===== MODAL =====
+    function openModal(title, bodyHTML) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalBody').innerHTML = bodyHTML;
+      const overlay = document.getElementById('modalOverlay');
+      overlay.style.display = 'flex';
+      overlay.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modalOverlay');
+      overlay.style.display = 'none';
+      overlay.classList.add('hidden');
+      editTarget = null;
+    }
+
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalOverlay').addEventListener('click', e => { 
+      if (e.target === e.currentTarget) closeModal(); 
+    });
+
+    // ===== TOAST =====
+    let toastQueue = [];
+    let toastVisible = false;
+
+    function showToast(msg) {
+      toastQueue.push(msg);
+      if (!toastVisible) showNextToast();
+    }
+
+    function showNextToast() {
+      if (toastQueue.length === 0) {
+        toastVisible = false;
+        return;
+      }
+      
+      toastVisible = true;
+      const msg = toastQueue.shift();
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('opacity-0','pointer-events-none','translate-y-4');
+      setTimeout(() => {
+        t.classList.add('opacity-0','pointer-events-none','translate-y-4');
+        setTimeout(showNextToast, 300);
+      }, 2500);
+    }
+
+    // ===== TABS =====
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.toggle('bg-white', b.dataset.tab === activeTab);
+          b.classList.toggle('dark:bg-gray-700', b.dataset.tab === activeTab);
+          b.classList.toggle('text-gray-900', b.dataset.tab === activeTab);
+          b.classList.toggle('dark:text-white', b.dataset.tab === activeTab);
+          b.classList.toggle('shadow-sm', b.dataset.tab === activeTab);
+          b.classList.toggle('text-gray-500', b.dataset.tab !== activeTab);
+          b.classList.toggle('dark:text-gray-400', b.dataset.tab !== activeTab);
+        });
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById('tab-'+activeTab).classList.remove('hidden');
+      });
+    });
+
+    // ===== DARK MODE =====
+    document.getElementById('darkToggle').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      lucide.createIcons();
+    });
+
+    // ===== ADMIN MODE =====
+    document.getElementById('adminBtn').addEventListener('click', () => {
+      if (isAdminMode) {
+        isAdminMode = false;
+        document.getElementById('adminBar').classList.add('hidden');
+        updateAdminButtonStates();
+        showToast('Admin mode dimatikan');
+      } else {
+        const modal = document.getElementById('adminLoginModal');
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+        document.getElementById('adminPassword').focus();
+      }
+    });
+
+    document.getElementById('adminCancel').addEventListener('click', () => {
+      const modal = document.getElementById('adminLoginModal');
+      modal.style.display = 'none';
+      modal.classList.add('hidden');
+      document.getElementById('adminPassword').value = '';
+    });
+
+    document.getElementById('adminLoginForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const pwd = document.getElementById('adminPassword').value;
+      if (pwd === 'masjid123') {
+        isAdminMode = true;
+        document.getElementById('adminBar').classList.remove('hidden');
+        updateAdminButtonStates();
+        const modal = document.getElementById('adminLoginModal');
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        document.getElementById('adminPassword').value = '';
+        showToast('Admin mode diaktifkan');
+        renderJadwal(); // Re-render to show buttons
+        renderKeuangan();
+      } else {
+        showToast('Password salah');
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('adminPassword').focus();
+      }
+    });
+
+    document.getElementById('adminLogout').addEventListener('click', () => {
+      isAdminMode = false;
+      document.getElementById('adminBar').classList.add('hidden');
+      updateAdminButtonStates();
+      showToast('Admin mode dimatikan');
+      renderJadwal();
+      renderKeuangan();
+    });
+
+    function updateAdminButtonStates() {
+      document.querySelectorAll('.admin-only').forEach(btn => {
+        btn.disabled = !isAdminMode;
+        if (!isAdminMode) {
+          btn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      });
+    }
+
+    // ===== EDIT PRAYERS =====
+    document.getElementById('btnEditPrayers').addEventListener('click', () => {
+      if (!isAdminMode) {
+        showToast('Hanya admin yang dapat mengedit jadwal shalat');
+        return;
+      }
+      
+      const formHTML = `<form id="editPrayersForm" class="space-y-3">
+        ${PRAYERS_EDITABLE.map(p => `
+          <div class="flex items-end gap-3">
+            <div class="flex-1">
+              <label class="block text-xs font-semibold text-gray-500 mb-1">${p.name}</label>
+              <input type="time" id="time-${p.id}" value="${p.time}" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
+            </div>
+          </div>
+        `).join('')}
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm mt-4">Simpan Semua</button>
+      </form>`;
+      
+      openModal('Edit Jadwal Shalat', formHTML);
+      
+      document.getElementById('editPrayersForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Menyimpan...';
+        btn.disabled = true;
+        
+        for (const p of PRAYERS_EDITABLE) {
+          const newTime = document.getElementById(`time-${p.id}`).value;
+          await updatePrayerTime(p.id, newTime);
+        }
+        
+        btn.textContent = 'Simpan Semua';
+        btn.disabled = false;
+        showToast('Jadwal shalat berhasil diperbarui');
+        closeModal();
+      });
+    });
+
+    // ===== BULK IMPORT =====
+    document.getElementById('btnBulkImport').addEventListener('click', () => {
+      openModal('Bulk Import Jadwal', `
+        <p class="text-xs text-gray-500 mb-3">Format per baris: <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">Kategori | Tanggal (YYYY-MM-DD) | Penceramah | Status</code></p>
+        <form id="bulkForm" class="space-y-4">
+          <textarea id="bulkText" rows="6" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="Khutbah Jumat | 2025-01-10 | Ustadz Ahmad | Terjadwal"></textarea>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">Import</button>
+        </form>`);
+      
+      document.getElementById('bulkForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const lines = document.getElementById('bulkText').value.trim().split('\n').filter(Boolean);
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Importing...';
+        btn.disabled = true;
+        
+        let count = 0;
+        let errors = 0;
+        
+        for (const line of lines) {
+          const parts = line.split('|').map(s=>s.trim());
+          if (parts.length >= 3) {
+            const result = await addJadwal({
+              category: parts[0],
+              date: parts[1],
+              speaker: parts[2],
+              status: parts[3] || 'Terjadwal'
+            });
+            if (result.isOk) count++;
+            else errors++;
+          } else {
+            errors++;
+          }
+        }
+        
+        btn.textContent = 'Import';
+        btn.disabled = false;
+        showToast(`${count} jadwal berhasil diimport${errors > 0 ? `, ${errors} gagal` : ''}`);
+        if (count > 0) closeModal();
+      });
+    });
+
+    document.getElementById('btnBulkImportTx').addEventListener('click', () => {
+      openModal('Bulk Import Transaksi', `
+        <div class="space-y-3">
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p class="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2">📋 Panduan Format:</p>
+            <p class="text-xs text-blue-600 dark:text-blue-300 mb-2">Setiap baris: <code class="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded text-xs font-mono">Tanggal (YYYY-MM-DD) | Tipe | Keterangan | Jumlah</code></p>
+            <p class="text-xs text-blue-600 dark:text-blue-300 mb-2"><strong>Tipe:</strong> Pemasukan atau Pengeluaran</p>
+          </div>
+        </div>
+        <form id="bulkTxForm" class="space-y-4 mt-4">
+          <textarea id="bulkTxText" rows="8" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="2025-01-15 | Pemasukan | Infaq Jumat | 500000&#10;2025-01-16 | Pengeluaran | Listrik | 150000" required></textarea>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">Import Transaksi</button>
+        </form>`);
+      
+      document.getElementById('bulkTxForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const lines = document.getElementById('bulkTxText').value.trim().split('\n').filter(Boolean);
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Importing...';
+        btn.disabled = true;
+        
+        let count = 0;
+        let errors = 0;
+
+        for (const line of lines) {
+          const parts = line.split('|').map(s => s.trim());
+          if (parts.length >= 4) {
+            const [dateStr, txType, desc, amtStr] = parts;
+            const amount = Number(amtStr);
+            if (dateStr && txType && desc && amount > 0) {
+              const result = await addTransaction({
+                date: dateStr,
+                tx_type: txType,
+                description: desc,
+                amount: amount
+              });
+              if (result.isOk) count++;
+              else errors++;
+            } else {
+              errors++;
+            }
+          } else {
+            errors++;
+          }
+        }
+        
+        btn.textContent = 'Import Transaksi';
+        btn.disabled = false;
+        if (count > 0) showToast(`${count} transaksi berhasil diimport${errors > 0 ? `, ${errors} gagal` : ''}`);
+        else showToast('Format tidak valid. Cek kembali data Anda.');
+        if (count > 0) closeModal();
+      });
+    });
+
+    // ===== SEARCH =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('jadwalSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          currentJadwalFilter = e.target.value;
+          renderJadwal();
+        });
+      }
+    });
+
+    // ===== INIT =====
+    (async () => {
+      setupFirebaseListeners();
+      updateDates();
+      updateClock();
+      updateAdminButtonStates();
+      setInterval(updateClock, 1000);
+      setInterval(updateDates, 60000);
+      lucide.createIcons();
+    })();
+  </script>
+</body>
 </html>
